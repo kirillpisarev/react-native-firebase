@@ -211,7 +211,10 @@ didReceiveNotificationResponse:(UNNotificationResponse *)response
      NSDictionary *message = [self parseUNNotificationResponse:response];
 
      [self sendJSEvent:self name:NOTIFICATIONS_NOTIFICATION_OPENED body:message];
-     completionHandler();
+     dispatch_time_t delay = dispatch_time(DISPATCH_TIME_NOW, NSEC_PER_SEC * 20);
+     dispatch_after(delay, dispatch_get_main_queue(), ^(void){
+         completionHandler();
+     });
 }
 
 #endif

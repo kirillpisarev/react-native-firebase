@@ -14,6 +14,8 @@
 #if !TARGET_OS_TV
 - (void)didReceiveLocalNotification:(nonnull UILocalNotification *)notification;
 - (void)didReceiveRemoteNotification:(nonnull NSDictionary *)userInfo fetchCompletionHandler:(void (^_Nonnull)(UIBackgroundFetchResult))completionHandler;
+- (void)didReceiveLocalNotificationAction:(NSString*)action withNotification:(UILocalNotification *)localNotification;
+- (void)didReceiveRemoteNotificationAction:(NSString*)action withUserInfo:(nonnull NSDictionary *)userInfo;
 #endif
 
 @end

@@ -157,6 +157,26 @@ RCT_EXPORT_METHOD(complete:(NSString*)handlerKey fetchResult:(UIBackgroundFetchR
     [self sendJSEvent:self name:event body:notification];
 }
 
+- (void)didReceiveLocalNotificationAction:(NSString*)action withNotification:(UILocalNotification *) localNotification {
+    if ([self isIOS89]) {
+        NSDictionary *notification = [self parseUILocalNotification:localNotification];
+        [self sendJSEvent:self name:NOTIFICATIONS_NOTIFICATION_OPENED body:@{
+                                                                             @"action": action,
+                                                                             @"notification": notification
+                                                                             }];
+    }
+}
+
+- (void)didReceiveRemoteNotificationAction:(NSString*)action withUserInfo:(nonnull NSDictionary *)userInfo {
+    if ([self isIOS89]) {
+        NSDictionary *notification = [self parseUserInfo:userInfo];
+        [self sendJSEvent:self name:NOTIFICATIONS_NOTIFICATION_OPENED body:@{
+                                                                             @"action": action,
+                                                                             @"notification": notification
+                                                                             }];
+    }
+}
+
 // *******************************************************
 // ** Finish AppDelegate methods
 // *******************************************************

@@ -1,16 +1,44 @@
 buildscript {
   repositories {
     google()
-    jcenter()
     maven {
       url 'https://maven.fabric.io/public'
     }
+    jcenter()
   }
   dependencies {
-    classpath 'com.android.tools.build:gradle:3.2.0'
-    classpath 'com.google.gms:google-services:4.0.1'
+    classpath 'com.android.tools.build:gradle:3.3.2'
+    classpath 'com.google.gms:google-services:4.2.0'
     classpath 'com.google.firebase:firebase-plugins:1.1.5'
     classpath 'io.fabric.tools:gradle:1.25.4'
+  }
+}
+
+allprojects {
+  task downloadDependencies() {
+    description 'Download all dependencies to the Gradle cache'
+    doLast {
+      configurations.findAll().each { config ->
+        if (config.name.contains("minReactNative") && config.canBeResolved) {
+          print config.name
+          print '\n'
+          config.files
+        }
+      }
+    }
+  }
+
+  repositories {
+    mavenLocal()
+    google()
+    maven {
+      url "$rootDir/../node_modules/react-native/android"
+    }
+    maven {
+      url 'https://maven.google.com/'
+      name 'Google'
+    }
+    jcenter()
   }
 }
 
@@ -18,41 +46,7 @@ subprojects {
   task listAllDependencies(type: DependencyReportTask) {}
 }
 
-allprojects {
-  repositories {
-    mavenLocal()
-    google()
-    jcenter()
-    maven {
-      url "$rootDir/../node_modules/react-native/android"
-    }
-  }
-}
-
-subprojects {
-  ext {
-    compileSdk = 27
-    buildTools = "28.0.2"
-    minSdk = 18
-    targetSdk = 26
-  }
-
-  afterEvaluate { project ->
-    if (!project.name.equalsIgnoreCase("app")
-      && project.hasProperty("android")) {
-      android {
-        compileSdkVersion compileSdk
-        buildToolsVersion buildTools
-        defaultConfig {
-          minSdkVersion minSdk
-          targetSdkVersion targetSdk
-        }
-      }
-    }
-  }
-}
-
 task wrapper(type: Wrapper) {
-  gradleVersion = '4.6'
+  gradleVersion = '4.10.2'
   distributionUrl = distributionUrl.replace("bin", "all")
 }

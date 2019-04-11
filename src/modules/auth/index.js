@@ -62,13 +62,18 @@ export default class Auth extends ModuleBase {
       hasCustomUrlSupport: false,
       namespace: NAMESPACE,
     });
+    const NativeModule = getNativeModule(this);
 
     this._user = null;
     this._settings = null;
     this._authResult = false;
     this._languageCode =
-      getNativeModule(this).APP_LANGUAGE[app._name] ||
-      getNativeModule(this).APP_LANGUAGE['[DEFAULT]'];
+      NativeModule.APP_LANGUAGE[app._name] ||
+      NativeModule.APP_LANGUAGE['[DEFAULT]'];
+
+    if (NativeModule.APP_USER[app._name]) {
+      this._setUser(NativeModule.APP_USER[app._name]);
+    }
 
     SharedEventEmitter.addListener(
       // sub to internal native event - this fans out to
@@ -106,8 +111,8 @@ export default class Auth extends ModuleBase {
       }
     );
 
-    getNativeModule(this).addAuthStateListener();
-    getNativeModule(this).addIdTokenListener();
+    NativeModule.addAuthStateListener();
+    NativeModule.addIdTokenListener();
   }
 
   _setUser(user: ?NativeUser): ?User {
@@ -501,7 +506,11 @@ export default class Auth extends ModuleBase {
    * @return {Promise.<Null>}
    */
   applyActionCode(code: string): Promise<void> {
-    return getNativeModule(this).applyActionCode(code);
+    return getNativeModule(this)
+      .applyActionCode(code)
+      .then(user => {
+        this._setUser(user);
+      });
   }
 
   /**

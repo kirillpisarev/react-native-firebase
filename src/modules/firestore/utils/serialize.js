@@ -5,16 +5,14 @@
 import DocumentReference from '../DocumentReference';
 import Blob from '../Blob';
 import { DOCUMENT_ID } from '../FieldPath';
-import {
-  DELETE_FIELD_VALUE,
-  SERVER_TIMESTAMP_FIELD_VALUE,
-} from '../FieldValue';
+import FieldValue from '../FieldValue';
 import GeoPoint from '../GeoPoint';
 import Path from '../Path';
 import { typeOf } from '../../../utils';
 
 import type Firestore from '..';
 import type { NativeTypeMap } from '../firestoreTypes.flow';
+import Timestamp from '../Timestamp';
 
 /*
  * Functions that build up the data needed to represent
@@ -72,20 +70,6 @@ export const buildTypeMap = (value: any): NativeTypeMap | null => {
     };
   }
 
-  if (value === DELETE_FIELD_VALUE) {
-    return {
-      type: 'fieldvalue',
-      value: 'delete',
-    };
-  }
-
-  if (value === SERVER_TIMESTAMP_FIELD_VALUE) {
-    return {
-      type: 'fieldvalue',
-      value: 'timestamp',
-    };
-  }
-
   if (value === DOCUMENT_ID) {
     return {
       type: 'documentid',
@@ -125,6 +109,16 @@ export const buildTypeMap = (value: any): NativeTypeMap | null => {
       };
     }
 
+    if (value instanceof Timestamp) {
+      return {
+        type: 'timestamp',
+        value: {
+          seconds: value.seconds,
+          nanoseconds: value.nanoseconds,
+        },
+      };
+    }
+
     if (value instanceof Date) {
       return {
         type: 'date',
@@ -136,6 +130,17 @@ export const buildTypeMap = (value: any): NativeTypeMap | null => {
       return {
         type: 'blob',
         value: value.toBase64(),
+      };
+    }
+
+    // TODO: Salakar: Refactor in v6 - add internal `type` flag
+    if (value instanceof FieldValue) {
+      return {
+        type: 'fieldvalue',
+        value: {
+          elements: value.elements,
+          type: value.type,
+        },
       };
     }
 
@@ -205,6 +210,10 @@ const parseTypeMap = (firestore: Firestore, typeMap: NativeTypeMap): any => {
 
   if (type === 'geopoint') {
     return new GeoPoint(value.latitude, value.longitude);
+  }
+
+  if (type === 'timestamp') {
+    return new Timestamp(value.seconds, value.nanoseconds);
   }
 
   if (type === 'date') {

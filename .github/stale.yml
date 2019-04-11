@@ -4,11 +4,16 @@ daysUntilStale: 28
 daysUntilClose: 14
 # Issues with these labels will never be considered stale
 exemptLabels:
+  - 📌 pin
   - await-invertase-feedback
   - await-firebase-sdk-fix
   - await-maintainer-feedback
   - await-google-feedback
   - await-react-native-pr
+  - good-first-issue
+  - android-help-wanted
+  - ios-help-wanted
+  - incorrect-web-sdk-implementation
 # Label to use when marking an issue as stale
 staleLabel: stale
 # Comment to post when marking an issue as stale. Set to `false` to disable

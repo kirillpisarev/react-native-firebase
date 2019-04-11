@@ -9,6 +9,7 @@ import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.ReadableMapKeySetIterator;
 import com.facebook.react.bridge.WritableArray;
 import com.facebook.react.bridge.WritableMap;
+import com.google.firebase.Timestamp;
 import com.google.firebase.firestore.Blob;
 import com.google.firebase.firestore.DocumentChange;
 import com.google.firebase.firestore.DocumentReference;
@@ -41,6 +42,8 @@ class FirestoreSerialize {
   private static final String KEY_META = "metadata";
   private static final String KEY_CHANGES = "changes";
   private static final String KEY_OPTIONS = "options";
+  private static final String KEY_SECONDS = "seconds";
+  private static final String KEY_NANOSECONDS = "nanoseconds";
   private static final String KEY_LATITUDE = "latitude";
   private static final String KEY_LONGITUDE = "longitude";
   private static final String KEY_DOCUMENTS = "documents";
@@ -62,12 +65,18 @@ class FirestoreSerialize {
   private static final String TYPE_OBJECT = "object";
   private static final String TYPE_BOOLEAN = "boolean";
   private static final String TYPE_GEOPOINT = "geopoint";
+  private static final String TYPE_TIMESTAMP = "timestamp";
   private static final String TYPE_INFINITY = "infinity";
   private static final String TYPE_REFERENCE = "reference";
   private static final String TYPE_DOCUMENTID = "documentid";
   private static final String TYPE_FIELDVALUE = "fieldvalue";
   private static final String TYPE_FIELDVALUE_DELETE = "delete";
   private static final String TYPE_FIELDVALUE_TIMESTAMP = "timestamp";
+  private static final String TYPE_FIELDVALUE_INCREMENT = "increment";
+  private static final String TYPE_FIELDVALUE_UNION = "union";
+  private static final String TYPE_FIELDVALUE_REMOVE = "remove";
+  private static final String TYPE_FIELDVALUE_TYPE = "type";
+  private static final String TYPE_FIELDVALUE_ELEMENTS = "elements";
 
   // Document Change Types
   private static final String CHANGE_ADDED = "added";
@@ -91,8 +100,9 @@ class FirestoreSerialize {
 
     documentMap.putMap(KEY_META, metadata);
     documentMap.putString(KEY_PATH, documentSnapshot.getReference().getPath());
-    if (documentSnapshot.exists())
+    if (documentSnapshot.exists()) {
       documentMap.putMap(KEY_DATA, objectMapToWritable(documentSnapshot.getData()));
+    }
 
     return documentMap;
   }
@@ -307,6 +317,18 @@ class FirestoreSerialize {
       return typeMap;
     }
 
+
+    if (value instanceof Timestamp) {
+      WritableMap timestampMap = Arguments.createMap();
+
+      timestampMap.putDouble(KEY_SECONDS, ((Timestamp) value).getSeconds());
+      timestampMap.putInt(KEY_NANOSECONDS, ((Timestamp) value).getNanoseconds());
+
+      typeMap.putString(TYPE, TYPE_TIMESTAMP);
+      typeMap.putMap(VALUE, timestampMap);
+      return typeMap;
+    }
+
     if (value instanceof GeoPoint) {
       WritableMap geoPoint = Arguments.createMap();
 
@@ -445,15 +467,39 @@ class FirestoreSerialize {
       return firestore.document(path);
     }
 
+    if (TYPE_TIMESTAMP.equals(type)) {
+      ReadableMap timestampMap = typeMap.getMap(VALUE);
+
+      return new Timestamp(
+        (long) timestampMap.getDouble(KEY_SECONDS),
+        timestampMap.getInt(KEY_NANOSECONDS)
+      );
+    }
+
     if (TYPE_FIELDVALUE.equals(type)) {
-      String fieldValueType = typeMap.getString(VALUE);
+      ReadableMap fieldValueMap = typeMap.getMap(VALUE);
+      String fieldValueType = fieldValueMap.getString(TYPE_FIELDVALUE_TYPE);
 
       if (TYPE_FIELDVALUE_TIMESTAMP.equals(fieldValueType)) {
         return FieldValue.serverTimestamp();
       }
 
+      if (TYPE_FIELDVALUE_INCREMENT.equals(fieldValueType)) {
+        return FieldValue.increment(fieldValueMap.getDouble(TYPE_FIELDVALUE_ELEMENTS));
+      }
+
       if (TYPE_FIELDVALUE_DELETE.equals(fieldValueType)) {
         return FieldValue.delete();
+      }
+
+      if (TYPE_FIELDVALUE_UNION.equals(fieldValueType)) {
+        ReadableArray elements = fieldValueMap.getArray(TYPE_FIELDVALUE_ELEMENTS);
+        return FieldValue.arrayUnion(parseReadableArray(firestore, elements).toArray());
+      }
+
+      if (TYPE_FIELDVALUE_REMOVE.equals(fieldValueType)) {
+        ReadableArray elements = fieldValueMap.getArray(TYPE_FIELDVALUE_ELEMENTS);
+        return FieldValue.arrayRemove(parseReadableArray(firestore, elements).toArray());
       }
 
       Log.w(TAG, "Unknown FieldValue type: " + fieldValueType);

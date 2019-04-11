@@ -9,6 +9,7 @@ import { getLogger } from '../../utils/log';
 import ModuleBase from '../../utils/ModuleBase';
 import { getNativeModule } from '../../utils/native';
 import { isFunction, isObject } from '../../utils';
+import IOSMessaging from './IOSMessaging';
 import RemoteMessage from './RemoteMessage';
 
 import type App from '../core/app';
@@ -38,6 +39,8 @@ export const NAMESPACE = 'messaging';
  * @class Messaging
  */
 export default class Messaging extends ModuleBase {
+  _ios: IOSMessaging;
+
   constructor(app: App) {
     super(app, {
       events: NATIVE_EVENTS,
@@ -46,6 +49,7 @@ export default class Messaging extends ModuleBase {
       hasCustomUrlSupport: false,
       namespace: NAMESPACE,
     });
+    this._ios = new IOSMessaging(this);
 
     SharedEventEmitter.addListener(
       // sub to internal native event - this fans out to
@@ -71,12 +75,16 @@ export default class Messaging extends ModuleBase {
     }
   }
 
+  get ios(): IOSMessaging {
+    return this._ios;
+  }
+
   getToken(): Promise<string> {
     return getNativeModule(this).getToken();
   }
 
-  deleteToken(authorizedEntity?: string, scope?: string): Promise<void> {
-    return this.app.iid().deleteToken(authorizedEntity, scope);
+  deleteToken(): Promise<void> {
+    return getNativeModule(this).deleteToken();
   }
 
   onMessage(nextOrObserver: OnMessage | OnMessageObserver): () => any {
@@ -113,7 +121,7 @@ export default class Messaging extends ModuleBase {
       listener = nextOrObserver.next;
     } else {
       throw new Error(
-        'Messaging.OnTokenRefresh failed: First argument must be a function or observer object with a `next` function.'
+        'Messaging.onTokenRefresh failed: First argument must be a function or observer object with a `next` function.'
       );
     }
 

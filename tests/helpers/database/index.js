@@ -3,7 +3,7 @@ const CONTENTS = require('./content');
 module.exports = {
   CONTENTS,
   setDatabaseContents() {
-    const database = firebaseAdmin.database();
+    const database = firebase.database();
     return Promise.all([
       database.ref('tests/types').set(CONTENTS.DEFAULT),
       database.ref('tests/priority').setWithPriority(
@@ -13,6 +13,7 @@ module.exports = {
         666
       ),
       database.ref('tests/query').set(CONTENTS.QUERY),
+      database.ref('tests/issues').set(CONTENTS.ISSUES),
     ]);
   },
 };

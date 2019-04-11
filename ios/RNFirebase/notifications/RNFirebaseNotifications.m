@@ -17,7 +17,8 @@
 @end
 
 @implementation RNFirebaseNotifications {
-    NSMutableDictionary<NSString *, void (^)(UIBackgroundFetchResult)> *completionHandlers;
+    NSMutableDictionary<NSString *, void (^)(UIBackgroundFetchResult)> *fetchCompletionHandlers;
+    NSMutableDictionary<NSString *, void(^)(void)> *completionHandlers;
 }
 
 static RNFirebaseNotifications *theRNFirebaseNotifications = nil;
@@ -57,6 +58,7 @@ RCT_EXPORT_MODULE();
     // Set static instance for use from AppDelegate
     theRNFirebaseNotifications = self;
     completionHandlers = [[NSMutableDictionary alloc] init];
+    fetchCompletionHandlers = [[NSMutableDictionary alloc] init];
 }
 
 // PRE-BRIDGE-EVENTS: Consider enabling this to allow events built up before the bridge is built to be sent to the JS side
@@ -100,10 +102,16 @@ RCT_EXPORT_MODULE();
 
 RCT_EXPORT_METHOD(complete:(NSString*)handlerKey fetchResult:(UIBackgroundFetchResult)fetchResult) {
     if (handlerKey != nil) {
-        void (^completionHandler)(UIBackgroundFetchResult) = completionHandlers[handlerKey];
-        if(completionHandler != nil) {
-            completionHandlers[handlerKey] = nil;
-            completionHandler(fetchResult);
+        void (^fetchCompletionHandler)(UIBackgroundFetchResult) = fetchCompletionHandlers[handlerKey];
+        if (fetchCompletionHandler != nil) {
+            fetchCompletionHandlers[handlerKey] = nil;
+            fetchCompletionHandler(fetchResult);
+        } else {
+            void(^completionHandler)(void) = completionHandlers[handlerKey];
+            if (completionHandler != nil) {
+                completionHandlers[handlerKey] = nil;
+                completionHandler();
+            }
         }
     }
 }
@@ -147,13 +155,13 @@ RCT_EXPORT_METHOD(complete:(NSString*)handlerKey fetchResult:(UIBackgroundFetchR
             @"notification": notification
         };
     }
-    
+
     if (handlerKey != nil) {
-        completionHandlers[handlerKey] = completionHandler;
+        fetchCompletionHandlers[handlerKey] = completionHandler;
     } else {
         completionHandler(UIBackgroundFetchResultNoData);
     }
-    
+
     [self sendJSEvent:self name:event body:notification];
 }
 
@@ -234,11 +242,18 @@ didReceiveNotificationResponse:(UNNotificationResponse *)response
          withCompletionHandler:(void(^)())completionHandler NS_AVAILABLE_IOS(10_0) {
 #endif
      NSDictionary *message = [self parseUNNotificationResponse:response];
+           
+     NSString *handlerKey = message[@"notification"][@"notificationId"];
 
      [self sendJSEvent:self name:NOTIFICATIONS_NOTIFICATION_OPENED body:message];
+
      dispatch_time_t delay = dispatch_time(DISPATCH_TIME_NOW, NSEC_PER_SEC * 20);
      dispatch_after(delay, dispatch_get_main_queue(), ^(void){
-         completionHandler();
+         if (handlerKey != nil) {
+            completionHandlers[handlerKey] = completionHandler;
+         } else {
+            completionHandler();
+         }
      });
 }
 
@@ -589,9 +604,11 @@ RCT_EXPORT_METHOD(jsInitialised:(RCTPromiseResolveBlock)resolve rejecter:(RCTPro
                 calendarUnit = NSCalendarUnitHour | NSCalendarUnitMinute | NSCalendarUnitSecond;
             } else if ([interval isEqualToString:@"week"]) {
                 calendarUnit = NSCalendarUnitWeekday | NSCalendarUnitHour | NSCalendarUnitMinute | NSCalendarUnitSecond;
+            } else {
+                calendarUnit = NSCalendarUnitYear | NSCalendarUnitMonth | NSCalendarUnitDay | NSCalendarUnitHour | NSCalendarUnitMinute | NSCalendarUnitSecond;
             }
         } else {
-            // Needs to match exactly to the secpmd
+            // Needs to match exactly to the second
             calendarUnit = NSCalendarUnitYear | NSCalendarUnitMonth | NSCalendarUnitDay | NSCalendarUnitHour | NSCalendarUnitMinute | NSCalendarUnitSecond;
         }
 
@@ -645,6 +662,9 @@ RCT_EXPORT_METHOD(jsInitialised:(RCTPromiseResolveBlock)resolve rejecter:(RCTPro
      NSDictionary *notification = [self parseUNNotification:response.notification];
      notificationResponse[@"notification"] = notification;
      notificationResponse[@"action"] = response.actionIdentifier;
+     if ([response isKindOfClass:[UNTextInputNotificationResponse class]]) {
+         notificationResponse[@"results"] = @{@"resultKey": ((UNTextInputNotificationResponse *)response).userText};
+     }
 
      return notificationResponse;
 }

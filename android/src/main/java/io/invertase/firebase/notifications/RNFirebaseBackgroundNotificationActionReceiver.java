@@ -4,6 +4,7 @@ import android.app.NotificationManager;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.ComponentName;
 import android.os.Bundle;
 import android.support.v4.app.RemoteInput;
 
@@ -66,8 +67,10 @@ public class RNFirebaseBackgroundNotificationActionReceiver extends BroadcastRec
       if (remoteInput != null) {
         serviceIntent.putExtra("results", remoteInput);
       }
-      context.startService(serviceIntent);
-      HeadlessJsTaskService.acquireWakeLockNow(context);
+      ComponentName name = context.startService(serviceIntent);
+      if (name != null) {
+        HeadlessJsTaskService.acquireWakeLockNow(context);
+      }
     }
   }
 }

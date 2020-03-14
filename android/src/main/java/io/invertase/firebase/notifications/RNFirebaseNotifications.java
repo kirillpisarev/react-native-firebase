@@ -13,6 +13,7 @@ import android.util.Log;
 
 import com.facebook.react.bridge.ActivityEventListener;
 import com.facebook.react.bridge.Arguments;
+import com.facebook.react.bridge.LifecycleEventListener;
 import com.facebook.react.bridge.Promise;
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReactContextBaseJavaModule;
@@ -95,11 +96,32 @@ public class RNFirebaseNotifications extends ReactContextBaseJavaModule implemen
 
   @ReactMethod
   public void getInitialNotification(Promise promise) {
-    WritableMap notificationOpenMap = null;
     if (getCurrentActivity() != null) {
-      notificationOpenMap = parseIntentForNotification(getCurrentActivity().getIntent());
+      WritableMap notificationOpenMap = parseIntentForNotification(getCurrentActivity().getIntent());
+      promise.resolve(notificationOpenMap);
+    } else {
+      ReactApplicationContext ctx = getReactApplicationContext();
+      LifecycleEventListener lifecycleEventListener = new LifecycleEventListener() {
+        @Override
+        public void onHostResume() {
+          WritableMap notificationOpenMap = null;
+          if (getCurrentActivity() != null) {
+            notificationOpenMap = parseIntentForNotification(getCurrentActivity().getIntent());
+          }
+          promise.resolve(notificationOpenMap);
+          ctx.removeLifecycleEventListener(this);
+        }
+
+        @Override
+        public void onHostPause() {
+        }
+
+        @Override
+        public void onHostDestroy() {
+        }
+      };
+      ctx.addLifecycleEventListener(lifecycleEventListener);
     }
-    promise.resolve(notificationOpenMap);
   }
 
   @ReactMethod
@@ -393,9 +415,20 @@ public class RNFirebaseNotifications extends ReactContextBaseJavaModule implemen
       iconMap.putString("icon", notification.getIcon());
       androidMap.putMap("smallIcon", iconMap);
     }
+    if (notification.getImageUrl() != null) {
+      String imageUrl = notification.getImageUrl().toString();
+      WritableMap bigPictureMap = Arguments.createMap();
+      bigPictureMap.putString("picture", imageUrl);
+      bigPictureMap.putNull("largeIcon");
+      androidMap.putMap("bigPicture", bigPictureMap);
+      androidMap.putString("largeIcon", imageUrl);
+    }
     if (notification.getTag() != null) {
       androidMap.putString("group", notification.getTag());
       androidMap.putString("tag", notification.getTag());
+    }
+    if (notification.getChannelId() != null) {
+      androidMap.putString("channelId", notification.getChannelId());
     }
     notificationMap.putMap("android", androidMap);
 
